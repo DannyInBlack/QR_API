@@ -8,6 +8,10 @@ import (
 	"strconv"
 )
 
+// This program implements the Cantor Pairing function and it's inverse
+// Danial Sabry 211010447
+
+// Makes sure that command line arguments are in {1, 2}
 func formatArgs(args []string) (int, error) {
 	if len(args) == 0 {
 		return -1, errors.New("no arguments given")
@@ -27,10 +31,12 @@ func formatArgs(args []string) (int, error) {
 	return -1, errors.New("too many arguments given")
 }
 
+// Cantor
 func foo(x int, y int) int {
 	return (x+y+1)*(x+y)/2 + y
 }
 
+// Inverse Cantor
 func fooInverse(z int) (int, int) {
 	w := int((math.Sqrt(float64(8*z+1)) - 1) / 2)
 	t := (w*w + w) / 2
@@ -39,6 +45,7 @@ func fooInverse(z int) (int, int) {
 	return x, y
 }
 
+// Wrapper that handles incorrect formatting and input for Cantor
 func cantor() {
 	x, y := -1, -1
 
@@ -54,11 +61,12 @@ func cantor() {
 	fmt.Println(foo(x, y))
 }
 
+// Wrapper that handles incorrect formatting and input for Inverse Cantor
 func inverseCantor() {
 	z := -1
 
 	for z <= 0 {
-		fmt.Println("Please enter a positive integers: Z")
+		fmt.Println("Please enter a positive integer: Z")
 
 		if _, err := fmt.Scanf("%d", &z); err != nil {
 			fmt.Println("Error: ", err)
@@ -74,6 +82,7 @@ func main() {
 	args, err := formatArgs(os.Args[1:])
 
 	if err != nil {
+		// Exit with error from input args
 		fmt.Printf("Error: %s", err.Error())
 		os.Exit(1)
 	}
