@@ -1,96 +1,93 @@
 package main
 
 import (
-	"errors"
-	"fmt"
-	"math"
+	"log"
+	"net/http"
 	"os"
-	"strconv"
+	"os/exec"
+
+	"github.com/gin-gonic/gin"
+	godotenv "github.com/joho/godotenv"
+	qrcode "github.com/skip2/go-qrcode"
 )
 
-// This program implements the Cantor Pairing function and it's inverse
-// Danial Sabry 211010447
-
-// Makes sure that command line arguments are in {1, 2}
-func formatArgs(args []string) (int, error) {
-	if len(args) == 0 {
-		return -1, errors.New("no arguments given")
-	}
-
-	if len(args) == 1 {
-		if ty, err := strconv.Atoi(args[0]); err == nil {
-			if ty != 1 && ty != 2 {
-				return -1, errors.New("invalid arguments")
-			}
-			return ty, err
-		} else {
-			return -1, err
-		}
-	}
-
-	return -1, errors.New("too many arguments given")
-}
-
-// Cantor
-func foo(x int, y int) int {
-	return (x+y+1)*(x+y)/2 + y
-}
-
-// Inverse Cantor
-func fooInverse(z int) (int, int) {
-	w := int((math.Sqrt(float64(8*z+1)) - 1) / 2)
-	t := (w*w + w) / 2
-	x, y := w-z+t, z-t
-
-	return x, y
-}
-
-// Wrapper that handles incorrect formatting and input for Cantor
-func cantor() {
-	x, y := -1, -1
-
-	for x <= 0 && y <= 0 {
-		fmt.Println("Please enter two positive integers: X and Y")
-
-		if _, err := fmt.Scanf("%d %d", &x, &y); err != nil {
-			fmt.Println("Error: ", err)
-		}
-
-	}
-
-	fmt.Println(foo(x, y))
-}
-
-// Wrapper that handles incorrect formatting and input for Inverse Cantor
-func inverseCantor() {
-	z := -1
-
-	for z <= 0 {
-		fmt.Println("Please enter a positive integer: Z")
-
-		if _, err := fmt.Scanf("%d", &z); err != nil {
-			fmt.Println("Error: ", err)
-		}
-
-	}
-
-	fmt.Println(fooInverse(z))
-}
-
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	router := gin.Default()
+	router.GET("/qrcode", genQRcode)
+	router.POST("/qrcode", genQRcodes)
+	router.Run("localhost:8080")
 
-	args, err := formatArgs(os.Args[1:])
+	uri := os.Getenv("MONGODB_URI")
+	println(uri)
+}
+
+func genQRcode(c *gin.Context) {
+	link := c.Query("link")
+	if link == "" {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "Link is invalid"})
+		return
+	}
+
+	err := qrcode.WriteFile(link, qrcode.Medium, 256, link+".png")
 
 	if err != nil {
-		// Exit with error from input args
-		fmt.Printf("Error: %s", err.Error())
-		os.Exit(1)
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "Server couldn't generate QRcode"})
+		return
 	}
 
-	if args == 1 {
-		cantor()
-	} else {
-		inverseCantor()
+	c.File(link + ".png")
+}
+
+func generateZIP(images []string) error {
+
+	if err := exec.Command("mkdir", "temp").Run(); err != nil {
+		// log.Fatal(err)
+		return err
 	}
 
+	args := append(images, "temp")
+
+	_, err := exec.Command("mv", args...).Output()
+	if err != nil {
+		return err
+	}
+
+	_, err = exec.Command("zip", "-r", "temp.zip", "temp").Output()
+	if err != nil {
+		return err
+	}
+
+	return exec.Command("rm", "-R", "temp").Run()
+}
+
+func genQRcodes(c *gin.Context) {
+
+	if err := c.Request.ParseMultipartForm(5000); err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	links := c.Request.Form["links"]
+	for i, link := range links {
+		link += ".png"
+		err := qrcode.WriteFile(link, qrcode.Medium, 256, link)
+		if err != nil {
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "Server couldn't generate QRcode"})
+			return
+		}
+
+		links[i] = link
+	}
+
+	err := generateZIP(links)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	c.File("temp.zip")
 }
