@@ -1,4 +1,4 @@
-module qrui
+module QR_API
 
 go 1.23.2
 
