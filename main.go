@@ -8,7 +8,7 @@ import (
 	// "os/exec"
 
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/canvas"  
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
@@ -19,6 +19,7 @@ import (
 var running = false
 var statusText = widget.NewLabel("Status: Stopped")
 var generatedQRImage = widget.NewCard("", "Waiting for QR Codes", nil)
+var enterText = widget.NewEntry()
 
 func serve() {
 	router := gin.Default()
@@ -35,6 +36,7 @@ func genQRcode(c *gin.Context) {
 	}
 
 	link := c.Query("link")
+
 	if link == "" { // link argument is missing
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "Invalid link argument"})
 		return
